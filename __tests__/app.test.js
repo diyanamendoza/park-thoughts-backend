@@ -2,20 +2,23 @@ const pool = require('../lib/utils/pool.js');
 const setup = require('../data/setup.js');
 const request = require('supertest');
 const app = require('../lib/app.js');
-const WipService = require('../lib/services/WipService.js');
+// const WipService = require('../lib/services/WipService.js');
+// const { sendWipEmail } = require('../lib/utils/sendWipEmail.js');
 
+const mockSES = {
+  SES: jest.fn().mockReturnThis(),
+  sendEmail: jest.fn().mockReturnThis(),
+  promise: jest.fn().mockReturnThis(),
+  then: jest.fn().mockReturnThis()
+}
 
-// jest.mock(WipService, () => ({
-//   sendWipEmail: jest.fn()
-// }));
-
-// const mockEmailSend = jest.spyOn(WipService, 'sendWipEmail');
-
-// jest.spyOn(WipService, 'sendWipEmail').mockImplementation(() => 'Email Sent');
+jest.mock('aws-sdk', () => {
+  return { SES: jest.fn(() => mockSES) }
+})
 
 describe('lab routes', () => {
   beforeEach(() => {
-    // sendWipEmail.mockReset();
+    jest.clearAllMocks();
     return setup(pool);
   });
 
@@ -28,8 +31,7 @@ describe('lab routes', () => {
   it('makes a profile via POST and returns that profile', async () => {
 
     const res = await request(app).post('/wip?email=firsttest@test&zipcode=97216');
-    // const emailSpy = jest.spyOn(WipService, 'sendWipEmail').mockResolvedValueOnce('Email sent');
-    // expect(emailSpy).toHaveBeenCalledTimes(1);
+    expect(mockSES.sendEmail).toHaveBeenCalledTimes(1);
     expect(res.body).toEqual({ email: 'firsttest@test',
       id: expect.any(Number),
       park: expect.any(String),
@@ -45,7 +47,7 @@ describe('lab routes', () => {
     await request(app).post('/wip?email=userexists@test&zipcode=12345');
     const res = await request(app).get('/wip');
 
-    // expect(sendWipEmail).toHaveBeenCalledTimes(2);
+    expect(mockSES.sendEmail).toHaveBeenCalledTimes(2);
     expect(res.body).toEqual(expect.arrayContaining([{ email: 'userexists@test',
       id: expect.any(Number),
       park: expect.any(String),
@@ -76,8 +78,7 @@ describe('lab routes', () => {
       }
     ];
 
-    // expect(sendWipEmail).toHaveBeenCalledTimes(2);
-
+    expect(mockSES.sendEmail).toHaveBeenCalledTimes(2);
     const res = await request(app).get('/wip');
     expect(res.body).toEqual(expect.arrayContaining(profiles));
 
